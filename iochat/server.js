@@ -1,44 +1,33 @@
-var express = require('express');
-var app = express();
-var server = require('http').createServer(app);
-var io = require('socket.io').listen(server);
-users = [];
-connections = [];
+var app = require("http").createServer(handler);
+var io = require("socket.io").listen(app);
+var fs = require("fs");
 
-server.listen(process.env.PORT || 3000);
+app.listen(1234);
 console.log('Server running...');
 
-app.get('/', function(require, res){
-	res.sendFile(__dirname + '/index.html');
-})
+function handler(req, res) {
+    fs.readFile(__dirname + '/index.html',
+        function (err, data) {
+            if (err) {
+                res.writeHead(500);
+                return res.end('Error loading index.html');
+            }
+            res.writeHead(200);
+            res.end(data);
+        });
+}
 
-io.sockets.on('connection', function(socket){
-	connections.push(socket);
-	console.log('Connected: %s sockets connected', connections.length);
-	
-	//Disconnect I
-	socket.on('disconnect', function(data){
-		users.splice(users.indexOf(socket.username), 1);
-		updateUsernames();
-		connections.splice(connections.indexOf(socket), 1);
-		console.log('Disconnected: %s sockets connected', connections.length);
-	});
-	
-	//Send Message
-	socket.on('send message', function(data){
-		io.sockets.emit('new message', {msg: data});
-	});
-	
-	//New User
-	socket.on('new user', function(data, callback){
-		callback(true);
-		socket.username = data;
-		users.push(socket.username);
-		updateUsernames();
-	});
-	
-	
-	function updateUsernames(){
-		io.sockets.emit('get users', users);
-	}
-});
+io.sockets.on('connection', function (socket) {
+    //when receiving the data from the server, push the same message to client.
+    socket.on("clientMsg", function (data) {
+        //send the data to the current client requested/sent.
+        socket.emit("serverMsg", data);
+        //send the data to all the clients who are accessing the same site(localhost)
+        socket.broadcast.emit("serverMsg", data);
+    });
+
+    socket.on("sender", function (data) {
+        socket.emit("sender", data);
+        socket.broadcast.emit("sender", data);
+    });
+});   
